@@ -1,5 +1,5 @@
 { 
-"name": "your-project-name", // Change this to your actual project name 
+"name": "chevisance", // Change this to your actual project name 
 "main": ".open-next/worker.js", 
 "compatibility_date": "2024-12-30", // Use a recent date 
 "compatibility_flags": [ 
