@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 // Sender must be on a domain verified in Resend (e.g. chevisance.com) so the
 // message is SPF/DKIM-authenticated and lands in the Inbox (not spam).
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@chevisance.com'
@@ -19,6 +17,9 @@ const esc = (v: unknown) =>
 
 export async function POST(req: NextRequest) {
   try {
+    // Initialize Resend INSIDE the POST function to prevent build-time crashes on Cloudflare
+    const resend = new Resend(process.env.RESEND_API_KEY)
+
     const data = await req.json()
     const {
       name,
