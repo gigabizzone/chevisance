@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// The trick: We give it a fake key so it doesn't crash during the build step. 
+// At runtime, Cloudflare will automatically replace it with your real key!
+const resend = new Resend(process.env.RESEND_API_KEY || 're_dummykey1234567890123456789')
 
-// Sender must be on a domain verified in Resend (e.g. chevisance.com) so the
-// message is SPF/DKIM-authenticated and lands in the Inbox (not spam).
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@chevisance.com'
 const FROM = `Chevisance Shipping <${FROM_EMAIL}>`
 
-// Escape user-supplied values before placing them in HTML.
+const yn = (v: unknown) => (v ? 'Yes' : 'No')
+
 const esc = (v: unknown) =>
   String(v ?? '')
     .replace(/&/g, '&amp;')
@@ -17,33 +18,53 @@ const esc = (v: unknown) =>
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, phone, subject, message } = await req.json()
+    const data = await req.json()
+    const {
+      name,
+      email,
+      phone,
+      freightType,
+      departure,
+      destination,
+      commodity,
+      company,
+      weight,
+      notes,
+      incoterms,
+      express,
+      insurance,
+    } = data
 
-    if (!name || !email || !phone || !subject || !message) {
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !freightType ||
+      !departure ||
+      !destination ||
+      !commodity
+    ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       )
     }
 
-    // 1) Notify the office inbox (nishant@chevisance.com via CONTACT_EMAIL)
+    // 1) Notify the office inbox
     await resend.emails.send({
       from: FROM,
-      to: process.env.CONTACT_EMAIL!,
+      to: process.env.CONTACT_EMAIL || 'nishant@chevisance.com',
       reply_to: email,
-      subject: `New Enquiry — ${subject} — ${name}`,
-      text:
-        `New Website Enquiry\n\n` +
-        `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\n` +
-        `Subject: ${subject}\n\nMessage:\n${message}\n`,
+      subject: `Quote Request — ${freightType} — ${name}`,
+      text: `New Quote Request\nName: ${name}\nFreight Type: ${freightType}`,
       html: `
-        <h2>New Website Enquiry</h2>
-        <p><strong>Name:</strong> ${esc(name)}</p>
-        <p><strong>Email:</strong> ${esc(email)}</p>
-        <p><strong>Phone:</strong> ${esc(phone)}</p>
-        <p><strong>Subject:</strong> ${esc(subject)}</p>
-        <p><strong>Message:</strong></p>
-        <p>${esc(message).replace(/\n/g, '<br/>')}</p>
+        <h2>New Quote Request</h2>
+        <p><strong>Name:</strong> ${esc(name)} | <strong>Company:</strong> ${esc(company || 'N/A')}</p>
+        <p><strong>Email:</strong> ${esc(email)} | <strong>Phone:</strong> ${esc(phone)}</p>
+        <h3>Shipment Details</h3>
+        <p><strong>Freight Type:</strong> ${esc(freightType)}</p>
+        <p><strong>From:</strong> ${esc(departure)} &rarr; <strong>To:</strong> ${esc(destination)}</p>
+        <p><strong>Commodity:</strong> ${esc(commodity)}</p>
       `,
     })
 
@@ -51,22 +72,19 @@ export async function POST(req: NextRequest) {
     await resend.emails.send({
       from: FROM,
       to: email,
-      reply_to: process.env.CONTACT_EMAIL!,
-      subject: 'Thank you for contacting Chevisance Shipping',
-      text:
-        `Thank you, ${name}!\n\n` +
-        `We have received your enquiry and will get back to you within 24 hours.\n\n` +
-        `— CHEVISANCE SHIPPING PVT. LTD.`,
+      reply_to: process.env.CONTACT_EMAIL || 'nishant@chevisance.com',
+      subject: 'We have received your quote request — Chevisance Shipping',
+      text: `Thank you, ${name}! Our freight specialists will review your request and get back to you within 24 hours.`,
       html: `
         <h2>Thank you, ${esc(name)}!</h2>
-        <p>We have received your enquiry and will get back to you within 24 hours.</p>
+        <p>Our freight specialists will review your request and get back to you within 24 hours.</p>
         <p>— CHEVISANCE SHIPPING PVT. LTD.</p>
       `,
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Contact form error:', error)
+    console.error('Quote form error:', error)
     return NextResponse.json({ error: 'Failed to send' }, { status: 500 })
   }
 }
