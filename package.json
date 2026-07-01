@@ -4,9 +4,9 @@
   "private": true,
   "description": "CHEVISANCE SHIPPING PVT. LTD. — International Freight Forwarding corporate website (Next.js 14).",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "node server.js",
+    "dev": "next dev", 
+    "build": "next build && npx @opennextjs/cloudflare build --skipBuild", 
+    "start": "next start", 
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "placeholders": "node scripts/generate-placeholders.mjs"
